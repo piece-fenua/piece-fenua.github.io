@@ -536,11 +536,23 @@
         <label>Quantité en stock<input name="qte" type="number" min="0" value="${a.qte}" required></label></div>
         <label>Compatible avec<input name="compat" value="${esc(a.compat)}"></label>
         <label>Délai si rupture (ex. « 10 jours »)<input name="commande" value="${esc(a.commande || "")}"></label>
+        <label>📷 ${a.photo_url ? "Changer la photo" : "Ajouter une photo"}<input name="photo" type="file" accept="image/*"></label>
+        <img class="photo-prev" alt="Aperçu" hidden>
+        ${a.photo_url ? `<label class="chk"><input type="checkbox" name="sansphoto"> Retirer la photo actuelle</label>` : ""}
         <button class="btn b">Enregistrer</button><p class="msg"></p></form>`;
       const f = $("form", box);
+      f.photo.onchange = () => {
+        const fi = f.photo.files[0], prev = $(".photo-prev", f);
+        prev.hidden = !fi; if (fi) prev.src = URL.createObjectURL(fi);
+      };
       f.onsubmit = e => { e.preventDefault();
         busy($("button", f), async () => {
-          try { await B.updateAnnonce(a.id, { prix: Number(f.prix.value), qte: Number(f.qte.value), compat: f.compat.value, commande: f.commande.value || null }); await reload(); }
+          try {
+            await B.updateAnnonce(a.id, { prix: Number(f.prix.value), qte: Number(f.qte.value), compat: f.compat.value, commande: f.commande.value || null });
+            if (f.photo.files[0]) await B.changerPhoto(a, await compresserPhoto(f.photo.files[0]));
+            else if (f.sansphoto && f.sansphoto.checked) await B.changerPhoto(a, null);
+            await reload();
+          }
           catch (er) { setMsg($(".msg", f), er.message); }
         }); };
     });

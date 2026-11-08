@@ -1,5 +1,5 @@
 // Réseau d'abord (pour toujours avoir la dernière version), cache si hors ligne
-const CACHE = "piece-fenua-v9";
+const CACHE = "piece-fenua-v10";
 const FILES = ["./", "index.html", "style.css", "app.js", "backend.js", "config.js", "data.js", "icons.js",
   "confidentialite.html", "offres.html", "i18n.js", "lang/ty.js", "manifest.json", "assets/logo.svg", "assets/honu.svg", "assets/vaa.svg", "assets/icon-192.png", "assets/icon-512.png"];
 

@@ -148,6 +148,18 @@ function supabaseBackend(cfg) {
     async updateAnnonce(id, champs) {
       const { error } = await sb.from("annonces").update(champs).eq("id", id); err(error);
     },
+    async changerPhoto(a, photo) {
+      let photo_url = null;
+      if (photo) {
+        const pp = `${user.id}/${Date.now()}.jpg`;
+        const up = await sb.storage.from("photos").upload(pp, photo, { contentType: "image/jpeg" });
+        err(up.error);
+        photo_url = sb.storage.from("photos").getPublicUrl(pp).data.publicUrl;
+      }
+      const { error } = await sb.from("annonces").update({ photo_url }).eq("id", a.id); err(error);
+      const ancien = String(a.photo_url || "").split("/object/public/photos/")[1];
+      if (ancien) await sb.storage.from("photos").remove([decodeURIComponent(ancien)]);
+    },
     async deleteAnnonce(a) {
       const m = String(a.photo_url || "").split("/object/public/photos/")[1];
       if (m) await sb.storage.from("photos").remove([decodeURIComponent(m)]);
@@ -369,6 +381,14 @@ function localBackend() {
       if (a.etat === "occasion" && champs.prix >= PF_SEUIL && a.prix < PF_SEUIL && (!PF_normSerie(a.serie) || !a.justif_path))
         fail("À partir de 50 000 F : n° de série et justificatif obligatoires. Crée une nouvelle annonce.");
       Object.assign(a, champs, { maj: Date.now() });
+      saveAll();
+    },
+    async changerPhoto(a, photo) {
+      const x = annonces.find(y => y.id === a.id);
+      if (!x || x.owner !== user()?.id) fail("Accès refusé.");
+      x.photo_url = photo ? await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.onerror = () => r(null); fr.readAsDataURL(photo); }) : null;
+      x.maj = Date.now();
+      if (!set("annonces", annonces)) { x.photo_url = null; saveAll(); fail("Mémoire du téléphone pleine : photo non enregistrée."); }
       saveAll();
     },
     async deleteAnnonce(a) { annonces = annonces.filter(x => x.id !== a.id); reservations = reservations.filter(r => r.annonce_id !== a.id); saveAll(); },
