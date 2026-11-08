@@ -29,7 +29,17 @@
   const setMsg = (el, txt, ok) => { el.className = "msg " + (ok ? "okm" : "err"); el.textContent = txt; };
   const busy = async (btn, fn) => { btn.disabled = true; try { await fn(); } finally { btn.disabled = false; } };
 
-  function compresserPhoto(file, max = 1000) {
+  // Documents (identité, justificatifs) : image → JPG lisible (1600 px) ; PDF ou format illisible → fichier d'origine
+  async function preparerDocument(file) {
+    if (!file || !file.type || file.type === "application/pdf") return file;
+    try {
+      const blob = await compresserPhoto(file, 1600, 0.85);
+      const nom = (file.name || "document").replace(/\.[^.]+$/, "") + ".jpg";
+      return new File([blob], nom, { type: "image/jpeg" });
+    } catch { return file; }
+  }
+
+  function compresserPhoto(file, max = 1000, qualite = 0.8) {
     return new Promise((ok, ko) => {
       const img = new Image(), url = URL.createObjectURL(file);
       img.onload = () => {
@@ -38,7 +48,7 @@
         c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
         c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
         URL.revokeObjectURL(url);
-        c.toBlob(b => b ? ok(b) : ko(new Error("Photo illisible.")), "image/jpeg", 0.8);
+        c.toBlob(b => b ? ok(b) : ko(new Error("Photo illisible.")), "image/jpeg", qualite);
       };
       img.onerror = () => { URL.revokeObjectURL(url); ko(new Error("Ce fichier n'est pas une image lisible.")); };
       img.src = url;
@@ -405,7 +415,7 @@
       if (file.size > 8e6) return setMsg(m, "Fichier trop lourd (8 Mo maximum).");
       if (!profilComplet()) return setMsg(m, "Complète et enregistre d'abord tes informations (étape 1).");
       busy($("button", fi), async () => {
-        try { await B.sendId(file, fi.id_type.value); renderAll(); }
+        try { await B.sendId(await preparerDocument(file), fi.id_type.value); renderAll(); }
         catch (er) { setMsg(m, er.message); }
       }); };
 
@@ -480,7 +490,7 @@
       try {
         const photo = fv.photo.files[0] ? await compresserPhoto(fv.photo.files[0]) : null;
         const a = await B.addAnnonce({ nom: f.nom, cat: f.cat, compat: f.compat, ref: f.ref, etat: f.etat,
-          prix: Number(f.prix), qte: Number(f.qte), serie: occ ? f.serie : "", justif_type: f.justif_type }, occ ? justif : null, photo);
+          prix: Number(f.prix), qte: Number(f.qte), serie: occ ? f.serie : "", justif_type: f.justif_type }, occ && justif ? await preparerDocument(justif) : null, photo);
         const txt = {
           publie: "✔ Pièce publiée !",
           attente: "✔ Annonce envoyée. Elle sera visible après vérification (en général sous 24 h).",
@@ -627,7 +637,10 @@
     if (!path) return `<div>${label} : <span class="no">aucun fichier</span></div>`;
     const url = await B.docUrl(bucket, path);
     if (!url) return `<div>${label} : fichier envoyé (aperçu indisponible en démo)</div>`;
-    return `<div>${label} : <a href="${esc(url)}" target="_blank" rel="noopener">ouvrir</a><br><img src="${esc(url)}" alt="${esc(label)}" onerror="this.remove()"></div>`;
+    const lien = `<a href="${esc(url)}" target="_blank" rel="noopener">ouvrir dans un nouvel onglet</a>`;
+    if (/\.pdf$/i.test(path)) return `<div>${label} (PDF) : ${lien}<br><iframe class="doc-pdf" src="${esc(url)}" title="${esc(label)}"></iframe></div>`;
+    return `<div>${label} : ${lien}<br><img class="doc-img" src="${esc(url)}" alt="${esc(label)}"
+      onerror="this.outerHTML='<span class=&quot;muted&quot;>Aperçu impossible pour ce format : utilise « ouvrir ».</span>'"></div>`;
   }
   let adminTick = 0;
   async function renderAdmin() {
@@ -637,7 +650,7 @@
     try { comptes = await B.listProfilsAttente(); } catch (e) { console.error(e); }
     const htmlComptes = await Promise.all(comptes.map(async p => `
       <div class="card">
-        <div class="t">🪪 ${esc(p.nom || "(sans nom)")}</div>
+        <div class="t">👤 ${esc(p.nom || "(sans nom)")}</div>
         <div class="m">${esc(TYPES[p.type] || p.type)} · ${esc(p.commune)}, ${esc(p.ile)} · 📞 ${esc(p.tel)}${p.email ? " · " + esc(p.email) : ""}</div>
         <div class="docs"><div><b>Document :</b> ${esc(ID_TYPES[p.id_type] || p.id_type)}</div>${await docHtml("identites", "Pièce d'identité", p.id_path)}</div>
         <div class="actions">
