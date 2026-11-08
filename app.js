@@ -98,6 +98,19 @@
   }
   B.onAuth(ev => { if (ev === "PASSWORD_RECOVERY") { recovery = true; go("compte"); } reload(); });
 
+  // ---- lien d'e-mail expiré ou invalide (#error=…&error_code=otp_expired) ----
+  let lienErreur = "";
+  {
+    const h = new URLSearchParams(location.hash.slice(1));
+    if (h.get("error") || h.get("error_code")) {
+      lienErreur = h.get("error_code") === "otp_expired"
+        ? "Ce lien a expiré ou a déjà été utilisé. Seul le dernier e-mail reçu fonctionne, une seule fois. Redemande un lien ci-dessous."
+        : "Ce lien n'est pas valable. Redemande un lien ci-dessous.";
+      history.replaceState(null, "", location.pathname);
+      setTimeout(() => go("compte"), 0);
+    }
+  }
+
   // =====================================================================
   //  RECHERCHE
   // =====================================================================
@@ -251,6 +264,7 @@
   function renderConnexion(box) {
     box.innerHTML = `
       <h2>Mon compte</h2>
+      ${lienErreur ? `<div class="status st-no">⚠ <div>${esc(lienErreur)}</div></div>` : ""}
       <div class="subtabs">
         <button data-st="connexion" class="${sousOnglet === "connexion" ? "on" : ""}">Se connecter</button>
         <button data-st="inscription" class="${sousOnglet === "inscription" ? "on" : ""}">Créer un compte</button>
