@@ -13,5 +13,5 @@ window.PF_CONFIG = {
   CONTACT_WHATSAPP: "",   // ex. "87123456"
   CONTACT_EMAIL: "piecefenua.contact@gmail.com",
   // Adresse de la page Facebook officielle (laisser vide pour masquer)
-  FACEBOOK_URL: ""        // ex. "https://www.facebook.com/piecefenua"
+  FACEBOOK_URL: "https://www.facebook.com/profile.php?id=61596214417161"
 };
