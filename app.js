@@ -54,8 +54,16 @@
       img.src = url;
     });
   }
+  // photo + miniature (~15 Ko) : la liste charge la miniature, la grande photo s'ouvre au clic
+  async function preparerPhoto(file) {
+    const [grande, mini] = await Promise.all([compresserPhoto(file, 1000, 0.8), compresserPhoto(file, 240, 0.7)]);
+    return { grande, mini };
+  }
+  const miniUrl = u => /^https?:/.test(u) ? u.replace(/\.jpg$/, "_t.jpg") : u;
   const thumb = a => a.photo_url
-    ? `<img class="thumb" src="${esc(a.photo_url)}" alt="${esc(a.nom)}" loading="lazy">`
+    ? `<a href="${esc(a.photo_url)}" target="_blank" rel="noopener" class="thumb-link" title="Voir la photo en grand">
+         <img class="thumb" src="${esc(miniUrl(a.photo_url))}" alt="${esc(a.nom)}" loading="lazy"
+              onerror="this.onerror=null;this.src='${esc(a.photo_url)}'"></a>`
     : `<div class="thumb">${(window.ICONS || {})[a.cat] || ""}</div>`;
 
   let annonces = [], vols = [], demandes = [], reservations = [], recovery = false;
@@ -92,7 +100,7 @@
 
   // ---------- listes déroulantes ----------
   const optsCat = CATEGORIES.map(c => `<option value="${c.id}">${esc(c.nom)}</option>`).join("");
-  const optsIle = ILES.map(i => `<option>${esc(i)}</option>`).join("");
+  const optsIle = ARCHIPELS.map(ar => `<optgroup label="${esc(ar.nom)}">${ar.iles.map(i => `<option>${esc(i)}</option>`).join("")}</optgroup>`).join("");
   $$(".sel-cat").forEach(s => s.innerHTML = optsCat);
   $$(".sel-ile").forEach(s => s.innerHTML = optsIle);
   $("#f-ile").innerHTML = `<option value="">Toutes les îles</option>` + optsIle;
@@ -126,7 +134,9 @@
   // =====================================================================
   let catSel = "";
   $("#cats").innerHTML = CATEGORIES.map(c =>
-    `<button class="cat" data-cat="${c.id}"><span class="ico">${ICONS[c.id]}</span>${esc(c.nom)}</button>`).join("");
+    `<button class="cat" data-cat="${c.id}"><span class="ico">${ICONS[c.id]}</span>${esc(c.nom)}${c.reo ? `<span class="reo" lang="ty">${esc(c.reo)}</span>` : ""}</button>`).join("");
+  $("#hero-chercher").onclick = () => $("#q").focus();
+  $("#hero-vendre").onclick = () => go("vendre");
   $$("#cats .cat").forEach(b => b.addEventListener("click", () => {
     catSel = catSel === b.dataset.cat ? "" : b.dataset.cat;
     $$("#cats .cat").forEach(x => x.classList.toggle("on", x.dataset.cat === catSel));
@@ -142,6 +152,7 @@
     if (a.offre === "partenaire" || a.offre === "premium") b += `<span class="badge b-part">⭐ Fournisseur partenaire</span>`;
     if (a.type === "casse") b += `<span class="badge b-neuf">Casse</span>`;
     if (a.type === "particulier") b += `<span class="badge b-neuf">Particulier</span>`;
+    if (a.expedie) b += `<span class="badge b-exp">✈️ Envoi vers les îles</span>`;
     return b;
   }
   function stockTxt(a) {
@@ -161,43 +172,144 @@
     try {
       if (navigator.share) { await navigator.share({ title: a.nom, text: texte, url }); return; }
       await navigator.clipboard.writeText(url);
-      btn.textContent = "✔ Lien copié";
+      btn.textContent = "✔"; btn.title = "Lien copié";
     } catch (e) { if (e && e.name !== "AbortError") window.prompt("Copie ce lien :", url); }
   }
 
   const peutReserver = a => a.qte > 0 && a.owner && !String(a.owner).startsWith("demo-") && a.owner !== user()?.id;
 
+  // ---- préférences gardées sur ce téléphone : véhicule, favoris, alertes ----
+  const lire = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
+  const ecrire = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+  let vehicule = lire("pf_vehicule", "");
+  let favs = lire("pf_favs", []);
+  let alertes = lire("pf_alertes", []);           // [{ q, cat, ile, vu }]
+  let vehSeul = false, vehEdit = false;
+
+  // Compatible si tous les mots (marque, modèle) sont dans la fiche, et l'année dans la plage indiquée
+  function compatible(a) {
+    if (!vehicule) return false;
+    const mots = norm(vehicule).split(/[\s,/]+/).filter(Boolean);
+    const annees = mots.filter(w => /^(19|20)\d\d$/.test(w)).map(Number);
+    const autres = mots.filter(w => !/^(19|20)\d\d$/.test(w));
+    const txt = norm([a.compat, a.nom].join(" "));
+    if (!autres.length || !autres.every(w => txt.includes(w))) return false;
+    if (!annees.length) return true;
+    const plages = [...txt.matchAll(/((?:19|20)\d\d)\s*(?:-|–|a|à|\/)\s*((?:19|20)\d\d)/g)].map(m => [+m[1], +m[2]]);
+    const seules = [...txt.matchAll(/(?:19|20)\d\d/g)].map(m => +m[0]);
+    if (!seules.length) return true;
+    const y = annees[0];
+    return plages.some(([d, f]) => y >= d && y <= f) || seules.includes(y);
+  }
+  function renderVehicule() {
+    const box = $("#mon-vehicule");
+    if (vehEdit || !vehicule) {
+      box.innerHTML = vehEdit
+        ? `<form class="veh-form"><input name="v" value="${esc(vehicule)}" placeholder="ex. Toyota Hilux 2015" maxlength="60" aria-label="Mon véhicule">
+           <button class="btn b">OK</button>${vehicule ? `<button type="button" class="link" data-veh-del>Retirer</button>` : ""}</form>`
+        : `<button type="button" class="veh-add" data-veh-edit>🚗 <b>Mon véhicule</b> : ajoute-le pour voir les pièces compatibles</button>`;
+    } else {
+      const n = annonces.filter(a => a.statut === "publie" && compatible(a)).length;
+      box.innerHTML = `<div class="veh-on"><span>🚗 <b>${esc(vehicule)}</b> · ${n} pièce${n > 1 ? "s" : ""} compatible${n > 1 ? "s" : ""}</span>
+        <button type="button" class="link" data-veh-edit>Modifier</button>
+        <label class="chk"><input type="checkbox" data-veh-seul ${vehSeul ? "checked" : ""}> Seulement compatibles</label></div>`;
+    }
+    const f = $("form", box);
+    if (f) { f.onsubmit = e => { e.preventDefault(); vehicule = f.v.value.trim(); ecrire("pf_vehicule", vehicule); vehEdit = false; renderResults(); }; }
+    $$("[data-veh-edit]", box).forEach(b => b.onclick = () => { vehEdit = true; renderVehicule(); $("#mon-vehicule input").focus(); });
+    const d = $("[data-veh-del]", box); if (d) d.onclick = () => { vehicule = ""; vehSeul = false; ecrire("pf_vehicule", ""); vehEdit = false; renderResults(); };
+    const c = $("[data-veh-seul]", box); if (c) c.onchange = () => { vehSeul = c.checked; renderResults(); };
+  }
+  const correspond = (a, al) => a.statut === "publie" && !estVole(a.serie) && (!al.cat || a.cat === al.cat) && (!al.ile || a.ile === al.ile || a.expedie) &&
+    norm(al.q).split(/\s+/).filter(Boolean).every(w => norm([a.nom, a.compat, a.ref, a.vendeur, a.commune, catNom(a.cat)].join(" ")).includes(w));
+  const nomAlerte = al => [al.q && `« ${al.q} »`, al.cat && catNom(al.cat), al.ile].filter(Boolean).join(" · ");
+  function renderAlertes() {
+    const nouv = alertes.map((al, i) => ({ al, i, n: annonces.filter(a => correspond(a, al) && a.maj > al.vu).length })).filter(x => x.n);
+    $("#alertes-new").innerHTML = nouv.map(x => `<div class="alerte-new"><span>🔔 <b>${x.n}</b> nouvelle${x.n > 1 ? "s" : ""} pièce${x.n > 1 ? "s" : ""} pour ${esc(nomAlerte(x.al))}</span>
+      <button class="btn b" data-al-voir="${x.i}">Voir</button></div>`).join("");
+    $("#mes-alertes").innerHTML = alertes.length ? `<span class="muted">Mes alertes :</span> ` + alertes.map((al, i) =>
+      `<span class="chip"><button class="link" data-al-voir="${i}">🔔 ${esc(nomAlerte(al))}</button><button class="x" data-al-del="${i}" aria-label="Supprimer l'alerte">✕</button></span>`).join("") : "";
+    $$("[data-al-voir]").forEach(b => b.onclick = () => {
+      const al = alertes[+b.dataset.alVoir];
+      $("#q").value = al.q || ""; $("#f-ile").value = al.ile || ""; catSel = al.cat || "";
+      $$("#cats .cat").forEach(x => x.classList.toggle("on", x.dataset.cat === catSel));
+      al.vu = Date.now(); ecrire("pf_alertes", alertes); renderResults();
+      $("#results").scrollIntoView({ behavior: "smooth" });
+    });
+    $$("[data-al-del]").forEach(b => b.onclick = () => { alertes.splice(+b.dataset.alDel, 1); ecrire("pf_alertes", alertes); renderResults(); });
+  }
+  $("#btn-alerte").onclick = () => {
+    const al = { q: $("#q").value.trim(), cat: catSel, ile: $("#f-ile").value, vu: Date.now() };
+    if (!alertes.some(x => x.q === al.q && x.cat === al.cat && x.ile === al.ile)) alertes.push(al);
+    ecrire("pf_alertes", alertes); renderResults();
+    $("#btn-alerte").textContent = "✔ Alerte enregistrée : on te le dira à ta prochaine visite";
+  };
+  $("#f-fav").addEventListener("input", renderResults);
+
+  function vide(total) {
+    const pirogue = `<img src="assets/vaa.svg" alt="" class="vide-img">`;
+    return total
+      ? `<div class="empty">${pirogue}<p class="vide-t">Aucune pièce trouvée… pour l'instant !</p>
+          <p>Fais une demande : les vendeurs de la catégorie sont prévenus et te répondent.</p>
+          <button class="btn" id="go-demande">📣 Faire une demande de pièce</button></div>`
+      : `<div class="empty">${pirogue}<p class="vide-t">La pirogue se remplit 🌺</p>
+          <p>Pièce Fenua vient d'être lancé. Les premiers vendeurs arrivent : pros, casses et particuliers.</p>
+          <div class="hero-b"><button class="btn b" id="go-vendre">📦 Vendre mes pièces</button>
+          <button class="btn" id="go-demande">📣 Demander une pièce</button></div></div>`;
+  }
   function renderResults() {
     const q = norm($("#q").value).split(/\s+/).filter(Boolean);
-    const etat = $("#f-etat").value, ile = $("#f-ile").value, stock = $("#f-stock").checked, tri = $("#f-tri").value;
+    const etat = $("#f-etat").value, ile = $("#f-ile").value, stock = $("#f-stock").checked, tri = $("#f-tri").value, fav = $("#f-fav").checked;
     const list = focusId ? annonces.filter(a => a.id === focusId && a.statut === "publie" && !estVole(a.serie)) : annonces.filter(a =>
       a.statut === "publie" && !estVole(a.serie) &&
-      (!catSel || a.cat === catSel) && (!etat || a.etat === etat) && (!ile || a.ile === ile) && (!stock || a.qte > 0) &&
+      (!catSel || a.cat === catSel) && (!etat || a.etat === etat) && (!ile || a.ile === ile || a.expedie) && (!stock || a.qte > 0) &&
+      (!fav || favs.includes(a.id)) && (!vehSeul || compatible(a)) &&
       q.every(w => norm([a.nom, a.compat, a.ref, a.vendeur, a.commune, catNom(a.cat)].join(" ")).includes(w)))
       .sort(tri === "prix" ? (x, y) => x.prix - y.prix : (x, y) => y.maj - x.maj)
-      .sort((x, y) => (y.offre === "premium") - (x.offre === "premium"));   // premium = à la une
+      .sort((x, y) => (y.offre === "premium") - (x.offre === "premium"))   // premium = à la une
+      .sort((x, y) => compatible(y) - compatible(x))                       // puis : compatible avec mon véhicule en premier
+      .sort((x, y) => (!!ile && (y.ile === ile)) - (!!ile && (x.ile === ile)));   // l'île choisie avant les envois
 
+    const pub = annonces.filter(a => a.statut === "publie" && !estVole(a.serie));
+    const nbV = new Set(pub.map(a => a.owner || a.vendeur)).size, nbI = new Set(pub.map(a => a.ile)).size;
+    $("#stats").innerHTML = pub.length
+      ? `<b>${pub.length}</b> pièce${pub.length > 1 ? "s" : ""} · <b>${nbV}</b> vendeur${nbV > 1 ? "s" : ""} · <b>${nbI}</b> île${nbI > 1 ? "s" : ""}`
+      : `🌱 Lancement en cours : deviens l'un des premiers vendeurs !`;
+    $("#hero").hidden = !!(focusId || q.length || catSel);
     $("#count").innerHTML = focusId
       ? (list.length ? "Annonce partagée · " : "Cette annonce n'est plus disponible · ") + `<button class="link" id="voir-tout">Voir toutes les pièces</button>`
-      : esc(list.length + (list.length > 1 ? " pièces trouvées" : " pièce trouvée"));
+      : (pub.length ? esc(list.length + (list.length > 1 ? " pièces trouvées" : " pièce trouvée")) : "");
     const vt = $("#voir-tout");
     if (vt) vt.onclick = () => { focusId = null; history.replaceState(null, "", location.pathname); renderResults(); };
-    $("#results").innerHTML = list.length ? list.map(a => `
+    $("#results").innerHTML = list.length ? list.map(a => { const ar = archipelDe(a.ile); return `
       <article class="card has-img${a.offre === "premium" ? " une" : ""}">${a.offre === "premium" ? `<span class="une-tag">À la une</span>` : ""}${thumb(a)}<div class="body">
         <div class="h"><div class="t">${esc(a.nom)}</div><div class="p">${prix(a.prix)}</div></div>
         <div class="m">${esc(a.compat)}${a.ref ? " · Réf. " + esc(a.ref) : ""}</div>
-        <div class="m"><b>${esc(a.vendeur)}</b> · ${esc(a.commune)}, ${esc(a.ile)} · ${stockTxt(a)} · mis à jour ${depuis(a.maj)}</div>
+        ${compatible(a) ? `<div class="compat-ok">✔ Compatible avec ton ${esc(vehicule)}</div>` : ""}
+        <div class="m"><b>${esc(a.vendeur)}</b> · ${esc(a.commune)} <span class="arch arch-${ar.id}" title="${esc(ar.nom)}">${esc(a.ile)}</span></div>
+        <div class="m">${stockTxt(a)} · mis à jour ${depuis(a.maj)}</div>
         ${badges(a)}
+      </div><div class="foot">
         <div class="actions">
           <a class="btn g" href="${waLink(a.tel)}" target="_blank" rel="noopener">💬 WhatsApp</a>
-          <a class="btn b" href="tel:${telDigits(a.tel)}">📞 Appeler</a>
-          <button class="btn ghost" data-share="${esc(a.id)}">🔗 Partager</button>
+          <a class="ib" href="tel:${telDigits(a.tel)}" aria-label="Appeler" title="Appeler">📞</a>
+          <button class="ib" data-share="${esc(a.id)}" aria-label="Partager" title="Partager">🔗</button>
+          <button class="ib fav${favs.includes(a.id) ? " on" : ""}" data-fav="${esc(a.id)}" aria-pressed="${favs.includes(a.id)}" aria-label="Favori" title="Ajouter aux favoris">${favs.includes(a.id) ? "❤️" : "🤍"}</button>
+          <button class="ib sig" data-sig="${esc(a.id)}" aria-label="Signaler cette annonce" title="Signaler cette annonce">⚑</button>
         </div>
         ${peutReserver(a) ? `<button class="btn" data-resa="${esc(a.id)}">🛒 Réserver</button><div class="resa-box"></div>` : ""}
-        <button class="link sig" data-sig="${esc(a.id)}">⚑ Signaler cette annonce</button>
         <div class="sig-box"></div>
-      </div></article>`).join("")
-      : `<div class="empty">Aucune pièce trouvée.<br><br><button class="btn" id="go-demande">📣 Lancer une demande à tous les fournisseurs</button></div>`;
+      </div></article>`; }).join("") + `<div class="demande-cta">🔎 Tu ne trouves pas exactement ta pièce ?
+        <button class="btn" id="go-demande">📣 Fais une demande</button><span class="muted">Les vendeurs de la catégorie te répondent avec un prix.</span></div>`
+      : (fav ? `<div class="empty"><p class="vide-t">Aucun favori pour l'instant</p><p>Touche 🤍 sur une pièce pour la garder ici.</p></div>` : vide(pub.length));
+    $$("[data-fav]").forEach(b => b.onclick = () => {
+      const id = b.dataset.fav;
+      favs = favs.includes(id) ? favs.filter(x => x !== id) : [...favs, id]; ecrire("pf_favs", favs);
+      const on = favs.includes(id); b.classList.toggle("on", on); b.textContent = on ? "❤️" : "🤍"; b.setAttribute("aria-pressed", on);
+    });
+    const ba = $("#btn-alerte");
+    ba.hidden = focusId || !(q.length || catSel || ile); ba.textContent = "🔔 Me prévenir des nouvelles pièces";
+    renderVehicule(); renderAlertes();
     $$("[data-share]").forEach(b => b.onclick = () => partager(annonces.find(x => x.id === b.dataset.share), b));
     $$("[data-resa]").forEach(b => b.onclick = () => {
       if (!user()) return go("compte");
@@ -213,14 +325,14 @@
         busy($("button", f), async () => {
           try {
             await B.reserver(a.id, Number(f.qte.value), f.message.value, f.tel.value);
-            box.innerHTML = `<p class="msg okm">✔ Réservation envoyée ! Le vendeur va la confirmer. Suis-la dans l'onglet 🧾 Commandes.</p>`;
+            box.innerHTML = `<p class="msg okm">✔ Māuruuru ! Réservation envoyée. Le vendeur va la confirmer. Suis-la dans l'onglet 🧾 Commandes.</p>`;
             reservations = await B.listReservations(); renderGates();
           } catch (er) { setMsg($(".msg", f), er.message); }
         }); };
     });
     $$("[data-sig]").forEach(b => b.onclick = () => {
       if (!user()) return go("compte");
-      const box = b.nextElementSibling;
+      const box = b.closest(".card").querySelector(".sig-box");
       if (box.innerHTML) { box.innerHTML = ""; return; }
       box.innerHTML = `<form class="form sig-form">
         <select name="motif">${Object.entries(MOTIFS).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}</select>
@@ -229,10 +341,12 @@
       const f = $("form", box);
       f.onsubmit = e => { e.preventDefault();
         busy($("button", f), async () => {
-          try { await B.signaler(b.dataset.sig, f.motif.value, f.details.value); box.innerHTML = `<p class="msg okm">✔ Merci, un modérateur va examiner l'annonce.</p>`; }
+          try { await B.signaler(b.dataset.sig, f.motif.value, f.details.value); box.innerHTML = `<p class="msg okm">✔ Māuruuru ! Un modérateur va examiner l'annonce.</p>`; }
           catch (er) { setMsg($(".msg", f), er.message); }
         }); };
     });
+    const gv = $("#go-vendre");
+    if (gv) gv.onclick = () => go("vendre");
     const gd = $("#go-demande");
     if (gd) gd.addEventListener("click", () => {
       go("demande");
@@ -404,7 +518,7 @@
     fp.type.onchange = majType; majType();
     fp.onsubmit = e => { e.preventDefault(); const m = $(".msg", fp);
       busy($("button", fp), async () => {
-        try { await B.saveProfil(Object.fromEntries(new FormData(fp))); renderAll(); setMsg($("#f-profil .msg"), "✔ Profil enregistré.", true); }
+        try { await B.saveProfil(Object.fromEntries(new FormData(fp))); renderAll(); setMsg($("#f-profil .msg"), "✔ Māuruuru, profil enregistré.", true); }
         catch (er) { setMsg(m, er.message); }
       }); };
 
@@ -488,12 +602,12 @@
     }
     busy($("button.btn", fv), async () => {
       try {
-        const photo = fv.photo.files[0] ? await compresserPhoto(fv.photo.files[0]) : null;
+        const photo = fv.photo.files[0] ? await preparerPhoto(fv.photo.files[0]) : null;
         const a = await B.addAnnonce({ nom: f.nom, cat: f.cat, compat: f.compat, ref: f.ref, etat: f.etat,
-          prix: Number(f.prix), qte: Number(f.qte), serie: occ ? f.serie : "", justif_type: f.justif_type }, occ && justif ? await preparerDocument(justif) : null, photo);
+          prix: Number(f.prix), qte: Number(f.qte), serie: occ ? f.serie : "", justif_type: f.justif_type, expedie: !!fv.expedie.checked }, occ && justif ? await preparerDocument(justif) : null, photo);
         const txt = {
-          publie: "✔ Pièce publiée !",
-          attente: "✔ Annonce envoyée. Elle sera visible après vérification (en général sous 24 h).",
+          publie: "✔ Māuruuru ! Ta pièce est en ligne 🌺",
+          attente: "✔ Māuruuru ! Annonce envoyée. Elle sera visible après vérification (en général sous 24 h).",
           bloque: "⚠ Ce n° de série figure sur la liste des pièces signalées volées. L'annonce est bloquée."
         }[a.statut];
         setMsg(msg, txt, a.statut !== "bloque");
@@ -536,6 +650,7 @@
         <label>Quantité en stock<input name="qte" type="number" min="0" value="${a.qte}" required></label></div>
         <label>Compatible avec<input name="compat" value="${esc(a.compat)}"></label>
         <label>Délai si rupture (ex. « 10 jours »)<input name="commande" value="${esc(a.commande || "")}"></label>
+        <label class="chk"><input type="checkbox" name="expedie" ${a.expedie ? "checked" : ""}> ✈️ J'accepte d'expédier vers les autres îles</label>
         <label>📷 ${a.photo_url ? "Changer la photo" : "Ajouter une photo"}<input name="photo" type="file" accept="image/*"></label>
         <img class="photo-prev" alt="Aperçu" hidden>
         ${a.photo_url ? `<label class="chk"><input type="checkbox" name="sansphoto"> Retirer la photo actuelle</label>` : ""}
@@ -548,8 +663,10 @@
       f.onsubmit = e => { e.preventDefault();
         busy($("button", f), async () => {
           try {
-            await B.updateAnnonce(a.id, { prix: Number(f.prix.value), qte: Number(f.qte.value), compat: f.compat.value, commande: f.commande.value || null });
-            if (f.photo.files[0]) await B.changerPhoto(a, await compresserPhoto(f.photo.files[0]));
+            const ch = { prix: Number(f.prix.value), qte: Number(f.qte.value), compat: f.compat.value, commande: f.commande.value || null };
+            if ("expedie" in a || f.expedie.checked) ch.expedie = f.expedie.checked;   // colonne ajoutée par maj-expedition.sql
+            await B.updateAnnonce(a.id, ch);
+            if (f.photo.files[0]) await B.changerPhoto(a, await preparerPhoto(f.photo.files[0]));
             else if (f.sansphoto && f.sansphoto.checked) await B.changerPhoto(a, null);
             await reload();
           }
@@ -609,7 +726,7 @@
   $("#form-demande").addEventListener("submit", e => {
     e.preventDefault(); const f = e.target;
     busy($("button", f), async () => {
-      try { await B.addDemande(Object.fromEntries(new FormData(f))); f.reset(); setMsg($("#demande-msg"), "✔ Demande envoyée aux fournisseurs.", true); await reload(); }
+      try { await B.addDemande(Object.fromEntries(new FormData(f))); f.reset(); setMsg($("#demande-msg"), "✔ Māuruuru ! Demande envoyée aux fournisseurs.", true); await reload(); }
       catch (er) { setMsg($("#demande-msg"), er.message); }
     });
   });
@@ -769,6 +886,61 @@
   }
   const renderAll = render;
   await reload();
+
+  // ---------- installer l'appli sur le téléphone ----------
+  const dejaInstallee = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  const ua = navigator.userAgent;
+  const estIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const estAndroid = /Android/i.test(ua);
+  function majBoutonsInstall() { $$("[data-installer]").forEach(b => b.hidden = dejaInstallee()); }
+  function aideInstall() {
+    if (estIOS) return `<ol>
+        <li>Ouvre ce site dans <b>Safari</b> (pas depuis Facebook ou Messenger : touche ⋯ puis « Ouvrir dans le navigateur »).</li>
+        <li>Touche le bouton <b>Partager</b> <span class="kbd">⬆️</span> en bas de l'écran.</li>
+        <li>Fais défiler et choisis <b>« Sur l'écran d'accueil »</b>, puis <b>Ajouter</b>.</li></ol>`;
+    if (estAndroid) return `<ol>
+        <li>Ouvre ce site dans <b>Chrome</b> (depuis Facebook : touche ⋮ puis « Ouvrir dans Chrome »).</li>
+        <li>Touche le menu <span class="kbd">⋮</span> en haut à droite.</li>
+        <li>Choisis <b>« Installer l'application »</b> ou <b>« Ajouter à l'écran d'accueil »</b>.</li></ol>`;
+    return `<ol><li>Dans Chrome ou Edge, clique sur l'icône d'installation <span class="kbd">⊕</span> à droite de la barre d'adresse.</li>
+        <li>Ou ouvre le menu <span class="kbd">⋮</span> puis <b>« Installer Pièce Fenua »</b>.</li>
+        <li>Sur téléphone, c'est encore plus simple : ouvre piece-fenua.github.io et touche ce bouton.</li></ol>`;
+  }
+  $$("[data-installer]").forEach(b => b.addEventListener("click", async () => {
+    fermerPlus();
+    const ev = window.PF_installEvt;
+    if (ev) {
+      ev.prompt();
+      try { const r = await ev.userChoice; if (r.outcome === "accepted") window.PF_installEvt = null; } catch {}
+      return;
+    }
+    $("#install-aide").innerHTML = aideInstall();
+    const d = $("#dlg-install");
+    if (d.showModal) d.showModal(); else alert($("#install-aide").innerText);
+  }));
+  window.addEventListener("appinstalled", () => { window.PF_installEvt = null; $$("[data-installer]").forEach(b => b.hidden = true); });
+  majBoutonsInstall();
+
+  // ---------- partager l'appli ----------
+  const URL_APP = "https://piece-fenua.github.io/";
+  const TXT_APP = "Pièce Fenua 🌺 : le moteur de recherche des pièces détachées à Tahiti et dans les îles. Trouve ta pièce ou vends les tiennes gratuitement :";
+  $("#pa-wa").href = "https://wa.me/?text=" + encodeURIComponent(TXT_APP + " " + URL_APP);
+  $("#pa-fb").href = "https://www.facebook.com/sharer/sharer.php?u=" + encodeURIComponent(URL_APP);
+  $("#pa-sms").href = "sms:?&body=" + encodeURIComponent(TXT_APP + " " + URL_APP);
+  $("#pa-copier").onclick = async () => {
+    try { await navigator.clipboard.writeText(URL_APP); $("#pa-copier").textContent = "✔ Lien copié"; }
+    catch { window.prompt("Copie ce lien :", URL_APP); }
+  };
+  $$("[data-partager-app]").forEach(b => b.addEventListener("click", async () => {
+    fermerPlus();
+    if (navigator.share) {
+      try { await navigator.share({ title: "Pièce Fenua", text: TXT_APP, url: URL_APP }); return; }
+      catch (e) { if (e && e.name === "AbortError") return; }
+    }
+    $("#pa-copier").textContent = "🔗 Copier le lien";
+    const d = $("#dlg-partage");
+    if (d.showModal) d.showModal(); else window.prompt("Copie ce lien :", URL_APP);
+  }));
 
   // ---------- hors ligne (PWA) ----------
   if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {

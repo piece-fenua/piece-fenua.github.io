@@ -145,3 +145,79 @@ html,body{overflow-x:hidden}
 .sig{padding:10px 0;min-height:40px}
 .docs .doc-img{max-width:100%;max-height:320px;border-radius:8px;margin-top:6px;border:1px solid #ccd}
 .docs .doc-pdf{width:100%;height:420px;border:1px solid #ccd;border-radius:8px;margin-top:6px;background:#fff}
+.thumb-link{flex:none;display:block;border-radius:10px}
+
+/* ===== v14 : accueil, fiches compactes, archipels ===== */
+.hero{position:relative;overflow:hidden;background:linear-gradient(135deg,#0b4f6c,#127a9c 60%,#1a9bb5);color:#fff;border-radius:18px;padding:18px 18px 14px;margin:4px 0 14px;box-shadow:0 4px 14px rgba(11,79,108,.25)}
+.hero::after{content:"";position:absolute;left:0;right:0;bottom:0;height:9px;background:linear-gradient(135deg,transparent 50%,#f28c28 50%) 0 0/14px 9px repeat-x,linear-gradient(225deg,transparent 50%,#f28c28 50%) 0 0/14px 9px repeat-x}
+.hero .tiare{position:absolute;right:-18px;top:-18px;width:120px;height:120px;color:#fff;opacity:.16;transform:rotate(18deg)}
+.hero-t{font-size:1.5rem;font-weight:800;margin:0 0 4px}
+.hero-s{margin:0 0 12px;line-height:1.4;max-width:34em}
+.hero-b{display:flex;flex-wrap:wrap;gap:8px}
+.hero .btn.b{background:#fff;color:var(--bleu)}
+.hero-b .btn{flex:1 1 140px;padding:10px 8px;font-size:.9rem}
+.stats{margin:12px 0 6px;font-size:.9rem;opacity:.95}
+.cat .reo{display:block;font-size:.68rem;color:var(--lagon);font-style:italic;margin-top:2px}
+.card .actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px}
+.ib{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;border:0;background:var(--clair);font-size:1.1rem;text-decoration:none;cursor:pointer;color:var(--bleu);padding:0}
+.ib:hover{background:#cfe7ef}
+#results .card{position:relative;flex-wrap:wrap;row-gap:4px}
+#results .card .foot{flex:1 1 100%;min-width:0}
+#results .card .foot .actions{margin-top:4px;padding-right:34px;gap:6px}
+#results .card .foot .ib:not(.sig){width:42px;height:42px;min-height:42px}
+.ib.sig{position:absolute;right:4px;bottom:4px;width:36px;height:36px;min-height:36px;background:none;color:#a0a8b4;font-size:1.05rem}
+.arch{display:inline-block;font-size:.75rem;font-weight:700;padding:1px 8px;border-radius:10px;margin-left:2px;white-space:nowrap}
+.arch::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:currentColor;margin-right:4px;vertical-align:1px}
+.arch-societe{background:#e0f0f5;color:#0b5f80}
+.arch-tuamotu{background:#dff7f2;color:#0d7a68}
+.arch-marquises{background:#e6f2df;color:#3f6b1f}
+.arch-australes{background:#fdebdc;color:#a8480b}
+.arch-gambier{background:#efe6f7;color:#6b3f8f}
+.empty .vide-img{width:120px;color:var(--lagon);opacity:.85}
+.empty .vide-t{font-size:1.15rem;font-weight:800;color:var(--bleu);margin:8px 0 4px}
+.empty p{margin:6px auto;max-width:30em;color:#556}
+.empty .hero-b{justify-content:center;margin-top:10px}
+@media (max-width:720px){
+  .cats{-webkit-mask-image:linear-gradient(90deg,#000 85%,transparent);mask-image:linear-gradient(90deg,#000 85%,transparent)}
+  .thumb{width:72px;height:72px}
+  .hero-t{font-size:1.3rem}
+}
+
+/* ===== v15 : mon véhicule, favoris, alertes, envoi îles ===== */
+.veh{margin:10px 0 0}
+.veh-add{width:100%;text-align:left;background:#fff;border:2px dashed var(--lagon);border-radius:12px;padding:10px 12px;color:var(--bleu);cursor:pointer;font-size:.9rem;min-height:44px}
+.veh-on{background:#e3f6ea;border-radius:12px;padding:8px 12px;font-size:.9rem;display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.veh-on .chk{font-size:.85rem;margin-left:auto}
+.veh-form{display:flex;gap:8px;align-items:center}
+.veh-form input{flex:1;min-width:0;padding:10px 12px;border:2px solid var(--lagon);border-radius:10px;font-size:1rem}
+.compat-ok{display:inline-block;margin-top:4px;font-size:.8rem;font-weight:700;color:var(--vert)}
+.b-exp{background:#e8f1fb;color:#1d4f8a}
+.ib.fav.on{background:#fde3e0}
+.count-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 10px}
+.count-row p{margin:8px 0}
+.chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.85rem}
+.chips:empty{display:none}
+.chip{display:inline-flex;align-items:center;gap:4px;background:#fff;border:1px solid #cfe0e8;border-radius:16px;padding:2px 4px 2px 10px}
+.chip .x{border:0;background:none;color:#889;cursor:pointer;width:30px;height:30px;border-radius:50%}
+.alerte-new{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#fff6ec;border-left:5px solid var(--orange);border-radius:10px;padding:8px 12px;margin:10px 0;font-size:.92rem}
+.alerte-new .btn{margin-left:auto;padding:6px 14px}
+.demande-cta{background:#fff;border:2px dashed var(--orange);border-radius:14px;padding:14px;margin:14px 0;text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px;font-weight:700;color:var(--bleu)}
+.demande-cta .muted{font-weight:400;font-size:.85rem}
+.iles-info{background:#fff;border-radius:12px;padding:10px 14px;margin:10px 0;box-shadow:0 1px 3px rgba(0,0,0,.08);font-size:.9rem}
+.iles-info summary{cursor:pointer;font-weight:700;color:var(--bleu);min-height:32px;display:flex;align-items:center}
+.iles-info li{margin:6px 0}
+
+/* ===== v16 : installer l'appli ===== */
+.install-btn{margin-top:2px;background:rgba(255,255,255,.16);border:1.5px solid rgba(255,255,255,.7);color:#fff;border-radius:22px;padding:8px 14px;font-weight:700;font-size:.88rem;cursor:pointer;min-height:40px}
+.install-btn:hover{background:rgba(255,255,255,.26)}
+.dlg{border:0;border-radius:18px;padding:18px 18px 14px;max-width:min(420px,92vw);box-shadow:0 10px 40px rgba(11,79,108,.35);border-top:6px solid var(--accent);color:var(--txt)}
+.dlg::backdrop{background:rgba(11,40,60,.45)}
+.dlg h3{margin:0 0 8px}
+.dlg ol{padding-left:20px;margin:6px 0}
+.dlg li{margin:8px 0;line-height:1.4}
+.dlg form{text-align:right;margin-top:10px}
+.kbd{display:inline-block;background:var(--clair);border-radius:6px;padding:0 6px;font-weight:700}
+.hero-mini{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px}
+.partage-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+.partage-btns .btn{text-align:center}
+.hero-mini .install-btn{flex:1 1 0;min-width:0;padding:7px 6px;font-size:.82rem;white-space:nowrap}

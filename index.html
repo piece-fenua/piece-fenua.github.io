@@ -16,9 +16,13 @@
   <meta property="og:url" content="https://piece-fenua.github.io/">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="style.css?v=13">
-  <script src="lang/ty.js?v=13"></script>
-  <script src="i18n.js?v=13"></script>
+  <script>
+    // Garde l'invitation d'installation (Android / Chrome) pour le bouton « Installer l'appli »
+    window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); window.PF_installEvt = e; document.dispatchEvent(new Event("pf-install")); });
+  </script>
+  <link rel="stylesheet" href="style.css?v=17">
+  <script src="lang/ty.js?v=17"></script>
+  <script src="i18n.js?v=17"></script>
 </head>
 <body>
   <header class="top">
@@ -46,15 +50,52 @@
     <button data-go-view="demande">📣 Demande groupée</button>
     <button data-go-view="vol">🚨 Signaler un vol</button>
     <button data-go-view="admin" id="sheet-admin" hidden>🛡 Vérification</button>
+    <button data-installer hidden>📲 Installer l'appli</button>
+    <button data-partager-app>📤 Partager l'appli</button>
     <a href="offres.html">⭐ Offres pros</a>
     <a href="contact.html">🌺 Qui sommes-nous · Contacts officiels</a>
     <button id="sheet-lang">🌺 Reo Tahiti / Français</button>
   </div>
 
+  <dialog id="dlg-install" class="dlg">
+    <h3>📲 Installer Pièce Fenua</h3>
+    <div id="install-aide"></div>
+    <p class="muted">L'appli s'ouvre ensuite depuis l'icône Pièce Fenua sur ton écran d'accueil, comme une vraie appli. Gratuit, sans passer par un magasin d'applis.</p>
+    <form method="dialog"><button class="btn b">J'ai compris</button></form>
+  </dialog>
+
+  <dialog id="dlg-partage" class="dlg">
+    <h3>📤 Partager Pièce Fenua</h3>
+    <p>Fais connaître l'appli à ta famille, tes amis, ton garagiste… Plus il y a de vendeurs, plus on trouve de pièces au fenua 🌺</p>
+    <div class="partage-btns">
+      <a class="btn g" id="pa-wa" target="_blank" rel="noopener">💬 WhatsApp</a>
+      <a class="btn b" id="pa-fb" target="_blank" rel="noopener">📘 Facebook</a>
+      <a class="btn ghost" id="pa-sms">✉️ SMS</a>
+      <button type="button" class="btn ghost" id="pa-copier">🔗 Copier le lien</button>
+    </div>
+    <form method="dialog"><button class="btn b">Fermer</button></form>
+  </dialog>
+
   <main>
     <!-- ===== CHERCHER ===== -->
     <section id="v-chercher" class="view on">
+      <div id="hero" class="hero">
+        <svg class="tiare" viewBox="0 0 100 100" aria-hidden="true"><g fill="currentColor"><ellipse cx="50" cy="24" rx="13" ry="24"/><ellipse cx="50" cy="24" rx="13" ry="24" transform="rotate(72 50 50)"/><ellipse cx="50" cy="24" rx="13" ry="24" transform="rotate(144 50 50)"/><ellipse cx="50" cy="24" rx="13" ry="24" transform="rotate(216 50 50)"/><ellipse cx="50" cy="24" rx="13" ry="24" transform="rotate(288 50 50)"/></g><circle cx="50" cy="50" r="7" fill="#f2c14e"/></svg>
+        <p class="hero-t">Ia ora na ! 🌺</p>
+        <p class="hero-s">Trouve ta pièce à Tahiti et dans les îles. <b>Pros, casses et particuliers</b> : publiez vos pièces gratuitement.</p>
+        <div class="hero-b">
+          <button class="btn" id="hero-chercher">🔍 Chercher une pièce</button>
+          <button class="btn b" id="hero-vendre">📦 Vendre mes pièces</button>
+        </div>
+        <p id="stats" class="stats"></p>
+        <div class="hero-mini">
+          <button type="button" class="install-btn" data-installer hidden>📲 Installer l'appli</button>
+          <button type="button" class="install-btn" data-partager-app>📤 Partager l'appli</button>
+        </div>
+      </div>
       <input id="q" type="search" placeholder="Nom de pièce, référence, marque, modèle…" autocomplete="off">
+      <div id="alertes-new"></div>
+      <div id="mon-vehicule" class="veh"></div>
       <div id="cats" class="cats"></div>
       <div class="filters">
         <select id="f-etat">
@@ -64,13 +105,25 @@
         </select>
         <select id="f-ile"></select>
         <label class="chk"><input type="checkbox" id="f-stock" checked> En stock</label>
+        <label class="chk"><input type="checkbox" id="f-fav"> ❤️ Mes favoris</label>
         <select id="f-tri">
           <option value="prix">Prix ↑</option>
           <option value="maj">Mise à jour récente</option>
         </select>
       </div>
-      <p id="count" class="muted"></p>
+      <div class="count-row"><p id="count" class="muted"></p><button type="button" id="btn-alerte" class="link" hidden>🔔 Me prévenir des nouvelles pièces</button></div>
+      <div id="mes-alertes" class="chips"></div>
       <div id="results"></div>
+      <details class="iles-info">
+        <summary>✈️ Comment recevoir une pièce dans les îles ?</summary>
+        <ul>
+          <li>Choisis ton île dans le filtre : tu vois aussi les vendeurs des autres îles qui acceptent d'<b>expédier</b> (badge ✈️).</li>
+          <li>Mets-toi d'accord avec le vendeur sur le <b>prix de la pièce et de l'envoi</b> avant tout paiement.</li>
+          <li>Moyens courants : <b>fret aérien</b>, <b>goélette</b> ou <b>colis postal</b>. Demande au vendeur le numéro de suivi ou la photo du bordereau.</li>
+          <li>Demande des photos de la pièce emballée et, si possible, paie à réception.</li>
+          <li>Pièce Fenua ne gère pas les paiements ni les envois : tout se règle directement entre vous.</li>
+        </ul>
+      </details>
     </section>
 
     <!-- ===== DEMANDE GROUPEE ===== -->
@@ -122,6 +175,7 @@
             <label>Prix (F CFP) *<input name="prix" type="number" min="0" step="50" required></label>
             <label>Quantité *<input name="qte" type="number" min="0" value="1" required></label>
           </div>
+          <label class="chk"><input type="checkbox" name="expedie"> ✈️ J'accepte d'expédier vers les autres îles (frais d'envoi à convenir avec l'acheteur)</label>
         </fieldset>
 
         <fieldset id="provenance" class="provenance">
@@ -211,10 +265,10 @@
     <span id="foot-mode"></span></p>
   </footer>
 
-  <script src="config.js?v=13"></script>
-  <script src="icons.js?v=13"></script>
-  <script src="data.js?v=13"></script>
-  <script src="backend.js?v=13"></script>
-  <script src="app.js?v=13"></script>
+  <script src="config.js?v=17"></script>
+  <script src="icons.js?v=17"></script>
+  <script src="data.js?v=17"></script>
+  <script src="backend.js?v=17"></script>
+  <script src="app.js?v=17"></script>
 </body>
 </html>
