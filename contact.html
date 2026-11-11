@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Qui sommes-nous et contacts officiels — Pièce Fenua</title>
+  <meta name="description" content="Qui est derrière Pièce Fenua, et les seuls canaux officiels pour nous contacter.">
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css?v=12">
+  <script src="lang/ty.js"></script>
+  <script src="i18n.js"></script>
+</head>
+<body>
+  <header class="top">
+    <img src="assets/logo.svg" alt="" class="logo">
+    <div class="grow"><h1>Pièce Fenua</h1><p class="tag">Qui sommes-nous · Contacts officiels</p></div>
+  </header>
+  <div class="tapa" aria-hidden="true"></div>
+
+  <main>
+    <h2>Qui sommes-nous ?</h2>
+    <p>Pièce Fenua est une application créée à Tahiti par <b>Brian</b>, habitant de Pirae. Elle est née d'un constat simple : au fenua, trouver une pièce détachée oblige à appeler magasin après magasin. Pièce Fenua réunit le stock des fournisseurs, des casses et des particuliers dans une seule recherche.</p>
+    <p>Le projet est en <b>phase de lancement</b> : l'application est gratuite pour tous, sans abonnement ni commission.</p>
+
+    <h2>Nos seuls canaux officiels</h2>
+    <div class="card">
+      <p>✉️ <b>E-mail :</b> <a href="mailto:piecefenua.contact@gmail.com">piecefenua.contact@gmail.com</a></p>
+      <p>🌐 <b>Application :</b> <a href="https://piece-fenua.github.io">piece-fenua.github.io</a></p>
+      <p id="fb-line" hidden>📘 <b>Facebook :</b> <a id="fb-link" href="#" target="_blank" rel="noopener">page officielle Pièce Fenua</a></p>
+    </div>
+    <p class="muted">Un message qui vient d'une autre adresse et qui utilise le nom Pièce Fenua n'est pas de nous.</p>
+
+    <h2>Ce que nous ne vous demanderons jamais</h2>
+    <div class="notice">
+      <img src="assets/honu.svg" alt="" class="honu">
+      <div>
+        Pièce Fenua ne vous demandera <b>jamais</b>, par e-mail, téléphone ou message :
+        <ul style="margin:6px 0 0 18px;line-height:1.7">
+          <li>un paiement, un virement ou un code de carte bancaire ;</li>
+          <li>votre mot de passe ;</li>
+          <li>vos coordonnées bancaires ;</li>
+          <li>de télécharger un programme.</li>
+        </ul>
+        La pièce d'identité des revendeurs se dépose <b>uniquement dans l'application</b>, dans un espace privé, jamais par e-mail.
+      </div>
+    </div>
+
+    <h2>Vous avez reçu un e-mail de notre part ?</h2>
+    <ol style="line-height:1.8;padding-left:22px">
+      <li>Vérifiez qu'il vient bien de <b>piecefenua.contact@gmail.com</b>.</li>
+      <li>Vérifiez que les liens mènent bien à <b>piece-fenua.github.io</b>.</li>
+      <li>En cas de doute, répondez à cette adresse ou écrivez-nous depuis la page Facebook : nous vous confirmerons que le message vient de nous.</li>
+    </ol>
+
+    <p style="margin-top:20px"><a class="btn b" href="index.html">← Retour à l'application</a></p>
+  </main>
+
+  <footer><img src="assets/vaa.svg" alt="" class="vaa"><p>© 2026 Pièce Fenua · <a href="offres.html">Offres pros</a> · <a href="confidentialite.html">Confidentialité</a></p></footer>
+  <script src="config.js?v=12"></script>
+  <script>
+    (() => { const u = (window.PF_CONFIG || {}).FACEBOOK_URL;
+      if (u && /^https:\/\/(www\.)?facebook\.com\//.test(u)) { document.getElementById("fb-link").href = u; document.getElementById("fb-line").hidden = false; } })();
+  </script>
+</body>
+</html>

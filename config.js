@@ -11,5 +11,7 @@ window.PF_CONFIG = {
 
   // Contact affiché sur la page « Offres pros » (laisser vide pour masquer)
   CONTACT_WHATSAPP: "",   // ex. "87123456"
-  CONTACT_EMAIL: "piecefenua.contact@gmail.com"
+  CONTACT_EMAIL: "piecefenua.contact@gmail.com",
+  // Adresse de la page Facebook officielle (laisser vide pour masquer)
+  FACEBOOK_URL: ""        // ex. "https://www.facebook.com/piecefenua"
 };
