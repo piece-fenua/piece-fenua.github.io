@@ -18,11 +18,18 @@
   <link rel="manifest" href="manifest.json">
   <script>
     // Garde l'invitation d'installation (Android / Chrome) pour le bouton « Installer l'appli »
+    // Petite animation d'ouverture : une fois par jour, sauf si « Réduire les animations » est activé
+    try {
+      const j = new Date().toDateString();
+      if (localStorage.getItem("pf_anim") !== j && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        document.documentElement.classList.add("anim"); localStorage.setItem("pf_anim", j);
+      }
+    } catch (e) {}
     window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); window.PF_installEvt = e; document.dispatchEvent(new Event("pf-install")); });
   </script>
-  <link rel="stylesheet" href="style.css?v=17">
-  <script src="lang/ty.js?v=17"></script>
-  <script src="i18n.js?v=17"></script>
+  <link rel="stylesheet" href="style.css?v=18">
+  <script src="lang/ty.js?v=18"></script>
+  <script src="i18n.js?v=18"></script>
 </head>
 <body>
   <header class="top">
@@ -265,10 +272,10 @@
     <span id="foot-mode"></span></p>
   </footer>
 
-  <script src="config.js?v=17"></script>
-  <script src="icons.js?v=17"></script>
-  <script src="data.js?v=17"></script>
-  <script src="backend.js?v=17"></script>
-  <script src="app.js?v=17"></script>
+  <script src="config.js?v=18"></script>
+  <script src="icons.js?v=18"></script>
+  <script src="data.js?v=18"></script>
+  <script src="backend.js?v=18"></script>
+  <script src="app.js?v=18"></script>
 </body>
 </html>

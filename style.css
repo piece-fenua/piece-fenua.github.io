@@ -221,3 +221,17 @@ html,body{overflow-x:hidden}
 .partage-btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
 .partage-btns .btn{text-align:center}
 .hero-mini .install-btn{flex:1 1 0;min-width:0;padding:7px 6px;font-size:.82rem;white-space:nowrap}
+
+/* ===== v18 : animation d'ouverture (CSS seulement, < 1 s, une fois par jour) ===== */
+@keyframes pf-fleur{0%{transform:scale(.3) rotate(-120deg);opacity:0}70%{transform:scale(1.08) rotate(8deg);opacity:1}100%{transform:none}}
+@keyframes pf-monte{from{transform:translateY(14px);opacity:0}to{transform:none;opacity:1}}
+@keyframes pf-frise{from{clip-path:inset(0 100% 0 0)}to{clip-path:inset(0 0 0 0)}}
+.anim .top .logo{animation:pf-fleur .8s cubic-bezier(.2,.8,.3,1) both}
+.anim .tapa{animation:pf-frise .7s .15s ease-out both}
+.anim .hero{animation:pf-monte .5s .2s ease-out both}
+@keyframes pf-tiare{from{transform:scale(.4) rotate(-90deg);opacity:0}to{transform:rotate(18deg);opacity:.16}}
+.anim .hero .tiare{animation:pf-tiare 1s .3s ease-out both}
+.anim .hero-t,.anim .hero-s{animation:pf-monte .45s ease-out both}
+.anim .hero-t{animation-delay:.3s}.anim .hero-s{animation-delay:.38s}
+.anim .hero-b,.anim .hero-mini,.anim .stats{animation:pf-monte .45s .48s ease-out both}
+@media (prefers-reduced-motion:reduce){.anim *{animation:none!important}}
